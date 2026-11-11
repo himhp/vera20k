@@ -1100,6 +1100,26 @@ impl Simulation {
                 )
             });
         }
+        // Native opcode 0x14 (EventClass::Execute branch 0x004C6FDE): ANIMATION
+        // spawns a one-shot animation at a cell. VERA does not yet model the
+        // spawn, so hold the raw record as SynchronizedRecord for network
+        // determinism; the semantic spawn pass is a future change.
+        if crate::sim::command::AnimationRecord::decode(record).is_some() {
+            let owner = *self
+                .houses
+                .order()
+                .get(usize::try_from(record.house_id()).ok()?)?;
+            return self.houses.contains_key(&owner).then(|| {
+                CommandEnvelope::new(
+                    owner,
+                    execute_tick,
+                    Command::SynchronizedRecord {
+                        record: record.clone(),
+                    },
+                )
+            });
+        }
+
         if let Some(typed) = DeployRecord::decode(record) {
             let owner = self.command_sender_owner(typed.house_id)?;
             let entity_id = u64::try_from(typed.entity_id).ok()?;
